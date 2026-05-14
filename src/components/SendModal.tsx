@@ -64,8 +64,8 @@ export default function SendModal({ isOpen, onClose, user, onSend, initialFriend
     if (selectedFriend && amount > 0 && amount <= user.robux) {
       setStep('loading');
       
-      // 5 second delay as requested
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      // Reduced delay to prevent "stuck" feeling
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       try {
         await fetch('/api/send-robux', {

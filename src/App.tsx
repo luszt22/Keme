@@ -113,7 +113,7 @@ export default function App() {
         setIsSendModalOpen(true);
       }
       setPendingAction(null);
-    }, 1200); // Faster transition
+    }, 600); // Super fast transition to avoid "stuck" feeling
   };
 
   const checkVerificationBeforeSend = (friend?: Friend) => {
@@ -251,7 +251,7 @@ export default function App() {
             />
           )}
 
-          <section className="mt-12">
+          <section className="mt-12 max-w-[713px] mx-auto">
             <h2 className="text-xl font-bold mb-4">Bonus item we picked for you</h2>
             <div className="border border-gray-200 rounded-2xl bg-white overflow-hidden shadow-sm">
               <div 
@@ -278,7 +278,7 @@ export default function App() {
               <div className="divide-y divide-gray-100">
                 {PACKAGES.map((pkg, i) => (
                   <div key={i} className="flex items-center justify-between p-3 px-6 md:px-10 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
                       <div className="flex items-center gap-2">
                         <RobuxIcon size={28} className="text-slate-800" />
                         <span className="text-[32px] font-black text-slate-800 tabular-nums leading-none tracking-tight">{pkg.robux.toLocaleString()}</span>
@@ -308,19 +308,19 @@ export default function App() {
             </div>
           </section>
 
-          <section className="mt-16 mb-32">
+          <section className="mt-16 mb-32 max-w-[713px] mx-auto">
             <h2 className="text-xl font-bold mb-6">Robux packages</h2>
             <div className="border border-gray-200 rounded-2xl bg-white overflow-hidden shadow-sm divide-y divide-gray-100">
               {STANDARD_PACKAGES.map((pkg, i) => (
                 <div key={i} className="flex items-center justify-between p-3.5 px-10 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center gap-4 text-slate-800">
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3 text-slate-800">
+                    <div className="flex items-center gap-3">
                       <RobuxIcon size={32} />
                       <span className="text-[34px] font-black tabular-nums leading-none tracking-tight">{pkg.robux.toLocaleString()}</span>
                     </div>
                     {pkg.original && (
                       <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1 text-slate-400 font-bold relative">
+                        <div className="flex items-center gap-2 text-slate-400 font-bold relative">
                           <div className="absolute inset-x-0 h-[2px] bg-slate-400 top-1/2 -translate-y-1/2 pointer-events-none" />
                           <RobuxIcon size={22} />
                           <span className="text-xl">{pkg.original.toLocaleString()}</span>

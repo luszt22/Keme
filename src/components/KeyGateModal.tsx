@@ -25,36 +25,34 @@ export default function KeyGateModal({ onVerify, onAdminLogin, onClose }: KeyGat
     setErrorMessage('');
     
     try {
-      // 1. Get User IP (Fast check with timeout)
-      let ip = 'Unknown';
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000);
-        
-        const ipRes = await fetch('https://api.ipify.org?format=json', { 
-          signal: controller.signal 
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (ipRes.ok) {
-          const ipData = await ipRes.json();
-          ip = ipData.ip;
+      // Parallelize IP fetch and Firestore check for maximum speed
+      const ipPromise = (async () => {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 2500);
+          const res = await fetch('https://api.ipify.org?format=json', { signal: controller.signal });
+          clearTimeout(timeoutId);
+          if (res.ok) {
+            const data = await res.json();
+            return data.ip;
+          }
+        } catch (e) {
+          console.warn("IP Fetch optional skip");
         }
-      } catch (e) {
-        console.warn("IP Fetch failed or timed out, continuing with 'Unknown'");
-      }
+        return 'Unknown';
+      })();
 
-      // 2. Check Key in Firestore
+      // 2. Check Key in Firestore with shorter timeout
       const docRef = doc(db, 'access_keys', key);
-      
-      // Add a timeout to the Firestore call
       const docSnapPromise = getDoc(docRef);
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('TIMEOUT')), 8000)
+        setTimeout(() => reject(new Error('TIMEOUT')), 6000)
       );
 
-      const docSnap = await Promise.race([docSnapPromise, timeoutPromise]) as any;
+      const [ip, docSnap] = await Promise.all([
+        ipPromise,
+        Promise.race([docSnapPromise, timeoutPromise]) as Promise<any>
+      ]);
 
       if (docSnap.exists()) {
         const data = docSnap.data();

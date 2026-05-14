@@ -79,11 +79,12 @@ export default function AdminPanel({ onClose }: { onClose: () => void }) {
     // Artificial delay for "security" feel
     await new Promise(resolve => setTimeout(resolve, 1000));
 
+    // Strict Administrative Authentication
     if (username === ADMIN_USER && password === ADMIN_PASS) {
       localStorage.setItem("isAdminAuthenticated", "true");
       fetchKeys();
     } else {
-      setError("Invalid credentials.");
+      setError("Invalid Administrative Credentials.");
     }
     setIsLoggingIn(false);
   };
@@ -194,18 +195,18 @@ export default function AdminPanel({ onClose }: { onClose: () => void }) {
           <form onSubmit={handleAdminAuth} className="p-8 space-y-6">
             <div className="space-y-4">
               <div>
-                <label className="text-zinc-500 text-[10px] uppercase font-black tracking-widest mb-2 block">Username</label>
+                <label className="text-zinc-500 text-[10px] uppercase font-black tracking-widest mb-2 block">Admin Username</label>
                 <input 
                   type="text"
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full bg-zinc-800 border border-white/5 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
-                  placeholder="Admin username"
+                  placeholder="Username"
                 />
               </div>
               <div>
-                <label className="text-zinc-500 text-[10px] uppercase font-black tracking-widest mb-2 block">Password</label>
+                <label className="text-zinc-500 text-[10px] uppercase font-black tracking-widest mb-2 block">Admin Password</label>
                 <input 
                   type="password"
                   required
