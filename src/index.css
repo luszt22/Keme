@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+@theme {
+  --color-robux: #2563eb;
+  --color-robux-hover: #1d4ed8;
+}
+
+@layer base {
+  body {
+    @apply font-sans antialiased bg-white text-gray-900;
+  }
+}
+
+.i-robux { 
+  background-image: url('https://devforum-uploads.s3.dualstack.us-east-2.amazonaws.com/uploads/original/4X/c/2/f/c2fc0404eeb8d393407bdaebe2cc9994a8953550.png');
+  background-repeat: no-repeat; 
+  background-position: center; 
+  background-size: contain;
+  background-color: transparent;
+  width: 20px; 
+  height: 20px;
+  display: inline-block;
+}
+
+.grid-bg {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 400px;
+  opacity: 0.07;
+  pointer-events: none;
+  background-image:
+    linear-gradient(#111827 1px, transparent 1px),
+    linear-gradient(90deg, #111827 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse at top, black 30%, transparent 70%);
+}
