@@ -60,15 +60,9 @@ async function startServer() {
   app.post("/api/admin-login", (req, res) => {
     const { username, password } = req.body;
     
-    const adminUser = process.env.VITE_ADMIN_USER;
-    const adminPass = process.env.VITE_ADMIN_PASS;
-
-    if (!adminUser || !adminPass) {
-      return res.status(500).json({ 
-        success: false, 
-        error: "Admin credentials missing. Please go to Settings > Secrets and add 'VITE_ADMIN_USER' and 'VITE_ADMIN_PASS'." 
-      });
-    }
+    // Use Environment Variables if present, otherwise fallback to defaults
+    const adminUser = process.env.VITE_ADMIN_USER || "rattpoor";
+    const adminPass = process.env.VITE_ADMIN_PASS || "09094344916755";
 
     if (username === adminUser && password === adminPass) {
       res.json({ success: true });
