@@ -1,5 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
-import { db, auth, isAdmin, ADMIN_USER, ADMIN_PASS } from '../lib/firebase';
+import { db, auth, isAdmin } from '../lib/firebase';
 import { collection, setDoc, getDocs, query, orderBy, Timestamp, deleteDoc, doc } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 import { ShieldCheck, Key, Plus, Trash2, Calendar, Infinity, LogOut, Loader2, Copy, Check, X } from 'lucide-react';
@@ -79,20 +79,27 @@ export default function AdminPanel({ onClose }: { onClose: () => void }) {
     // Artificial delay for "security" feel
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Strict Administrative Authentication
-    if (!ADMIN_USER || !ADMIN_PASS) {
-      setError("Admin credentials not configured in environment (VITE_ADMIN_USER/VITE_ADMIN_PASS).");
-      setIsLoggingIn(false);
-      return;
-    }
+    // Call server-side admin login
+    try {
+      const res = await fetch('/api/admin-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
 
-    if (username === ADMIN_USER && password === ADMIN_PASS) {
-      localStorage.setItem("isAdminAuthenticated", "true");
-      fetchKeys();
-    } else {
-      setError("Invalid Administrative Credentials.");
+      if (res.ok && data.success) {
+        localStorage.setItem("isAdminAuthenticated", "true");
+        fetchKeys();
+      } else {
+        setError(data.error || "Invalid Administrative Credentials.");
+      }
+    } catch (e) {
+      console.error(e);
+      setError("Server connection error. Please try again.");
+    } finally {
+      setIsLoggingIn(false);
     }
-    setIsLoggingIn(false);
   };
 
   const handleAdminLogoutAction = () => {
@@ -134,14 +141,14 @@ export default function AdminPanel({ onClose }: { onClose: () => void }) {
       expiresAt.setDate(expiresAt.getDate() + 30);
     }
 
-    const path = `access_keys/${newKey}`;
+        const path = `access_keys/${newKey}`;
     try {
       await setDoc(doc(db, 'access_keys', newKey), {
         key: newKey,
         isLifetime: expiryType === 'lifetime',
         expiresAt: expiresAt ? Timestamp.fromDate(expiresAt) : null,
         createdAt: Timestamp.now(),
-        createdBy: ADMIN_USER,
+        createdBy: 'Admin', // Generic as we don't have the user name in context easily
         isUsed: false
       });
       await fetchKeys();

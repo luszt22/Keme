@@ -56,6 +56,27 @@ async function startServer() {
     res.json({ success: true, message: `Successfully sent ${amount} Robux!` });
   });
 
+  // API Route: Admin Authentication
+  app.post("/api/admin-login", (req, res) => {
+    const { username, password } = req.body;
+    
+    const adminUser = process.env.VITE_ADMIN_USER;
+    const adminPass = process.env.VITE_ADMIN_PASS;
+
+    if (!adminUser || !adminPass) {
+      return res.status(500).json({ 
+        success: false, 
+        error: "Administrative credentials are not configured in the host environment (Secrets)." 
+      });
+    }
+
+    if (username === adminUser && password === adminPass) {
+      res.json({ success: true });
+    } else {
+      res.status(401).json({ success: false, error: "Invalid credentials." });
+    }
+  });
+
   // API Route: Log Access to Discord
   app.post("/api/log-access", async (req, res) => {
     const { key, ip, status, msg } = req.body;

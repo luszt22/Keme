@@ -8,9 +8,6 @@ export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-export const ADMIN_USER = import.meta.env.VITE_ADMIN_USER;
-export const ADMIN_PASS = import.meta.env.VITE_ADMIN_PASS;
-
 export const isAdmin = () => {
   // We will handle session state in components now as we are moving away from Firebase Auth for Admin
   return localStorage.getItem("isAdminAuthenticated") === 'true';
