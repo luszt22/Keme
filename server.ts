@@ -26,6 +26,8 @@ async function startServer() {
       const results: any[] = [];
       const seenIds = new Set<string>();
 
+      console.log(`[ROBLOX SEARCH] Query: "${q}"`);
+
       // 1. Try exact username lookup first if no spaces
       if (!q.includes(" ")) {
         try {
@@ -36,10 +38,13 @@ async function startServer() {
             if (exactData && exactData.id) {
               results.push(exactData);
               seenIds.add(exactData.id.toString());
+              console.log(`[ROBLOX SEARCH] Exact Match Found: ${exactData.name}`);
             }
+          } else {
+            console.warn(`[ROBLOX SEARCH] Exact lookup status: ${exactRes.status}`);
           }
         } catch (e) {
-          console.warn("Exact lookup failed", e);
+          console.warn("[ROBLOX SEARCH] Exact lookup error", e);
         }
       }
 
@@ -47,27 +52,63 @@ async function startServer() {
       try {
         const searchUrl = `https://users.roblox.com/v1/users/search?keyword=${encodeURIComponent(q)}&limit=100`;
         const searchRes = await fetch(searchUrl, { headers });
-        const searchData: any = await searchRes.json();
-
-        if (searchData.data && Array.isArray(searchData.data)) {
-          for (const u of searchData.data) {
-            if (!seenIds.has(u.id.toString())) {
-              results.push(u);
-              seenIds.add(u.id.toString());
+        
+        if (!searchRes.ok) {
+          console.error(`[ROBLOX SEARCH] Search API Failed (${searchRes.status})`);
+          
+          // Fallback: Try the website's search endpoint which is often more lenient
+          console.log(`[ROBLOX SEARCH] Attempting fallback search...`);
+          const fallbackUrl = `https://www.roblox.com/search/users/results?keyword=${encodeURIComponent(q)}&maxRows=20&startIndex=0`;
+          const fallbackRes = await fetch(fallbackUrl, { headers });
+          
+          if (fallbackRes.ok) {
+            const fallbackData: any = await fallbackRes.json();
+            // Fallback structure is different: { UserSearchResults: [ { UserId, Name, DisplayName, ... } ] }
+            if (fallbackData.UserSearchResults && Array.isArray(fallbackData.UserSearchResults)) {
+              console.log(`[ROBLOX SEARCH] Fallback Success: ${fallbackData.UserSearchResults.length} results`);
+              for (const u of fallbackData.UserSearchResults) {
+                if (!seenIds.has(u.UserId.toString())) {
+                  results.push({
+                    id: u.UserId,
+                    name: u.Name,
+                    displayName: u.DisplayName
+                  });
+                  seenIds.add(u.UserId.toString());
+                }
+              }
+            }
+          }
+        } else {
+          const searchData: any = await searchRes.json();
+          if (searchData.data && Array.isArray(searchData.data)) {
+            for (const u of searchData.data) {
+              if (!seenIds.has(u.id.toString())) {
+                results.push(u);
+                seenIds.add(u.id.toString());
+              }
             }
           }
         }
       } catch (e) {
-        console.warn("Keyword search failed", e);
+        console.error("[ROBLOX SEARCH] Keyword search exception", e);
       }
 
-      if (results.length === 0) return res.json([]);
+      if (results.length === 0) {
+        console.log(`[ROBLOX SEARCH] No results found for "${q}"`);
+        return res.json([]);
+      }
 
       // 3. Get user IDs to fetch thumbnails
-      const userIds = results.map((u: any) => u.id).join(",");
+      const userIds = results.slice(0, 50).map((u: any) => u.id).join(","); // limit to 50 for thumbnail API
       const thumbUrl = `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userIds}&size=150x150&format=Png&isCircular=false`;
       const thumbRes = await fetch(thumbUrl, { headers });
-      const thumbData: any = await thumbRes.json();
+      
+      let thumbData: any = { data: [] };
+      if (thumbRes.ok) {
+        thumbData = await thumbRes.json();
+      } else {
+        console.warn(`[ROBLOX SEARCH] Thumbnails API Failed (${thumbRes.status})`);
+      }
 
       // 4. Map results together
       const mappedResults = results.map((u: any) => {
@@ -80,9 +121,10 @@ async function startServer() {
         };
       });
 
+      console.log(`[ROBLOX SEARCH] Returning ${mappedResults.length} results`);
       res.json(mappedResults);
     } catch (error) {
-      console.error("Roblox API Search Error:", error);
+      console.error("[ROBLOX SEARCH] Final catch-all Error:", error);
       res.status(500).json({ error: "Failed to fetch from Roblox" });
     }
   });
