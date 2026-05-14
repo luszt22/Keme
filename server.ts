@@ -66,7 +66,7 @@ async function startServer() {
     if (!adminUser || !adminPass) {
       return res.status(500).json({ 
         success: false, 
-        error: "Administrative credentials are not configured in the host environment (Secrets)." 
+        error: "Admin credentials missing. Please go to Settings > Secrets and add 'VITE_ADMIN_USER' and 'VITE_ADMIN_PASS'." 
       });
     }
 
