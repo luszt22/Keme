@@ -45,7 +45,7 @@ async function startServer() {
 
       // 2. Search for users by keyword
       try {
-        const searchUrl = `https://users.roblox.com/v1/users/search?keyword=${encodeURIComponent(q)}&limit=10`;
+        const searchUrl = `https://users.roblox.com/v1/users/search?keyword=${encodeURIComponent(q)}&limit=100`;
         const searchRes = await fetch(searchUrl, { headers });
         const searchData: any = await searchRes.json();
 
