@@ -80,6 +80,12 @@ export default function AdminPanel({ onClose }: { onClose: () => void }) {
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Strict Administrative Authentication
+    if (!ADMIN_USER || !ADMIN_PASS) {
+      setError("Admin credentials not configured in environment (VITE_ADMIN_USER/VITE_ADMIN_PASS).");
+      setIsLoggingIn(false);
+      return;
+    }
+
     if (username === ADMIN_USER && password === ADMIN_PASS) {
       localStorage.setItem("isAdminAuthenticated", "true");
       fetchKeys();
