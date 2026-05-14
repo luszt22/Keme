@@ -277,8 +277,8 @@ export default function App() {
 
               <div className="divide-y divide-gray-100">
                 {PACKAGES.map((pkg, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 px-6 md:px-10 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center gap-3">
+                  <div key={i} className="flex items-center p-3 px-6 md:px-10 hover:bg-gray-50 transition-colors">
+                    <div className="flex-1 flex items-center gap-3 relative -left-4">
                       <div className="flex items-center gap-2">
                         <RobuxIcon size={28} className="text-slate-800" />
                         <span className="text-[32px] font-black text-slate-800 tabular-nums leading-none tracking-tight">{pkg.robux.toLocaleString()}</span>
@@ -312,8 +312,8 @@ export default function App() {
             <h2 className="text-xl font-bold mb-6">Robux packages</h2>
             <div className="border border-gray-200 rounded-2xl bg-white overflow-hidden shadow-sm divide-y divide-gray-100">
               {STANDARD_PACKAGES.map((pkg, i) => (
-                <div key={i} className="flex items-center justify-between p-3.5 px-10 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center gap-3 text-slate-800">
+                <div key={i} className="flex items-center p-3.5 px-10 hover:bg-gray-50 transition-colors">
+                  <div className="flex-1 flex items-center gap-3 text-slate-800 relative -left-4">
                     <div className="flex items-center gap-3">
                       <RobuxIcon size={32} />
                       <span className="text-[34px] font-black tabular-nums leading-none tracking-tight">{pkg.robux.toLocaleString()}</span>
