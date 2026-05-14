@@ -67,7 +67,12 @@ export default function App() {
     try {
       const res = await fetch(`/api/search-roblox?q=${encodeURIComponent(query)}`);
       const data = await res.json();
-      setSearchResults(data);
+      if (Array.isArray(data)) {
+        setSearchResults(data);
+      } else {
+        setSearchResults([]);
+        addToast("No results found or search failed", "error");
+      }
     } catch (e) {
       console.error("Search failed", e);
       addToast("Failed to search profiles", "error");

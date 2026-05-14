@@ -15,36 +15,50 @@ async function startServer() {
     const q = (req.query.q as string || "").trim();
     if (!q || q.length < 3) return res.json([]);
     
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'application/json'
+    };
+
     try {
       // 1. Search for users by keyword
       const searchUrl = `https://users.roblox.com/v1/users/search?keyword=${encodeURIComponent(q)}&limit=10`;
-      const searchRes = await fetch(searchUrl);
-      const searchData = await searchRes.json();
+      const searchRes = await fetch(searchUrl, { headers });
+      let searchData = await searchRes.json();
 
+      // If keyword search yields nothing, try exact username lookup
       if (!searchData.data || searchData.data.length === 0) {
-        return res.json([]);
+        const exactUrl = `https://users.roblox.com/v1/users/get-by-username?username=${encodeURIComponent(q)}`;
+        const exactRes = await fetch(exactUrl, { headers });
+        const exactData = await exactRes.json();
+        
+        if (exactData && exactData.id) {
+          searchData = { data: [exactData] };
+        } else {
+          return res.json([]);
+        }
       }
 
       // 2. Get user IDs to fetch thumbnails
       const userIds = searchData.data.map((u: any) => u.id).join(",");
       const thumbUrl = `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userIds}&size=150x150&format=Png&isCircular=false`;
-      const thumbRes = await fetch(thumbUrl);
+      const thumbRes = await fetch(thumbUrl, { headers });
       const thumbData = await thumbRes.json();
 
       // 3. Map results together
       const results = searchData.data.map((u: any) => {
         const thumb = thumbData.data?.find((t: any) => t.targetId === u.id);
         return {
-          display: u.displayName,
+          display: u.displayName || u.name,
           username: u.name,
           avatarUrl: thumb ? thumb.imageUrl : null,
-          avatarLetter: u.displayName.charAt(0).toUpperCase()
+          avatarLetter: (u.displayName || u.name).charAt(0).toUpperCase()
         };
       });
 
       res.json(results);
     } catch (error) {
-      console.error("Roblox API Error:", error);
+      console.error("Roblox API Search Error:", error);
       res.status(500).json({ error: "Failed to fetch from Roblox" });
     }
   });
@@ -110,8 +124,13 @@ async function startServer() {
         return res.status(400).json({ error: "Invalid username" });
       }
 
+      const headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json'
+      };
+
       // 1. Get User ID from Username
-      const userRes = await fetch(`https://users.roblox.com/v1/users/get-by-username?username=${encodeURIComponent(username)}`);
+      const userRes = await fetch(`https://users.roblox.com/v1/users/get-by-username?username=${encodeURIComponent(username)}`, { headers });
       const userData = await userRes.json();
 
       if (!userData || !userData.id) {
@@ -119,8 +138,7 @@ async function startServer() {
       }
 
       // 2. Get Avatar Headshot URL
-      // Use isCircular=false to get the full square image for better quality and fitting
-      const thumbRes = await fetch(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userData.id}&size=150x150&format=Png&isCircular=false`);
+      const thumbRes = await fetch(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userData.id}&size=150x150&format=Png&isCircular=false`, { headers });
       const thumbData = await thumbRes.json();
 
       const thumbnail = thumbData?.data?.[0];

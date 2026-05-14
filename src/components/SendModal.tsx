@@ -42,9 +42,14 @@ export default function SendModal({ isOpen, onClose, user, onSend, initialFriend
       try {
         const res = await fetch(`/api/search-roblox?q=${encodeURIComponent(search)}`);
         const data = await res.json();
-        setSearchResults(data);
+        if (Array.isArray(data)) {
+          setSearchResults(data);
+        } else {
+          setSearchResults([]);
+        }
       } catch (e) {
         console.error("Search error", e);
+        setSearchResults([]);
       } finally {
         setIsLoading(false);
       }
