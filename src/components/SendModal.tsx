@@ -211,12 +211,12 @@ export default function SendModal({ isOpen, onClose, user, onSend, initialFriend
                 </div>
 
                 {/* Big Amount Overall Display */}
-                <div className="flex items-center justify-center gap-3 mb-6 mt-4">
-                   <div className="w-12 h-12 flex items-center justify-center">
-                      <RobuxIcon className="w-full h-full" />
-                   </div>
+                 <div className="flex items-center justify-center gap-3 mb-6 mt-4">
+                    <div className="w-12 h-12 flex items-center justify-center">
+                       <RobuxIcon className="w-full h-full" />
+                    </div>
                    <span className="text-6xl font-black text-slate-800 tabular-nums tracking-tighter leading-none">{amount}</span>
-                </div>
+                 </div>
 
                 {/* Custom Amount Input */}
                 <div className="w-full mb-10 px-10">

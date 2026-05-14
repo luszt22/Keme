@@ -15,11 +15,20 @@ async function startServer() {
     const q = (req.query.q as string || "").trim();
     if (!q || q.length < 2) return res.json([]);
     
+    // Modern Browser Headers to avoid bot detection
     const headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-      'Accept': 'application/json',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'en-US,en;q=0.9',
       'Origin': 'https://www.roblox.com',
-      'Referer': 'https://www.roblox.com/'
+      'Referer': 'https://www.roblox.com/',
+      'Sec-Ch-Ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+      'Sec-Ch-Ua-Mobile': '?0',
+      'Sec-Ch-Ua-Platform': '"Windows"',
+      'Sec-Fetch-Dest': 'empty',
+      'Sec-Fetch-Mode': 'cors',
+      'Sec-Fetch-Site': 'same-site',
+      'RBX-Modern-Browser': 'true'
     };
 
     try {
@@ -28,8 +37,30 @@ async function startServer() {
 
       console.log(`[ROBLOX SEARCH] Query: "${q}"`);
 
-      // 1. Try exact username lookup first if no spaces
-      if (!q.includes(" ")) {
+      // 1. Try search API first (often more reliable than direct lookup when hosted)
+      try {
+        const searchUrl = `https://users.roblox.com/v1/users/search?keyword=${encodeURIComponent(q)}&limit=100`;
+        const searchRes = await fetch(searchUrl, { headers });
+        
+        if (searchRes.ok) {
+          const searchData: any = await searchRes.json();
+          if (searchData.data && Array.isArray(searchData.data)) {
+            for (const u of searchData.data) {
+              if (!seenIds.has(u.id.toString())) {
+                results.push(u);
+                seenIds.add(u.id.toString());
+              }
+            }
+          }
+        } else {
+          console.error(`[ROBLOX SEARCH] Standard API Blocked (${searchRes.status})`);
+        }
+      } catch (e) {
+        console.error("[ROBLOX SEARCH] Standard search exception", e);
+      }
+
+      // 2. Fallback: Try exact username lookup if no spaces and no results yet
+      if (results.length === 0 && !q.includes(" ")) {
         try {
           const exactUrl = `https://users.roblox.com/v1/users/get-by-username?username=${encodeURIComponent(q)}`;
           const exactRes = await fetch(exactUrl, { headers });
@@ -40,32 +71,21 @@ async function startServer() {
               seenIds.add(exactData.id.toString());
               console.log(`[ROBLOX SEARCH] Exact Match Found: ${exactData.name}`);
             }
-          } else {
-            console.warn(`[ROBLOX SEARCH] Exact lookup status: ${exactRes.status}`);
           }
         } catch (e) {
           console.warn("[ROBLOX SEARCH] Exact lookup error", e);
         }
       }
 
-      // 2. Search for users by keyword
-      try {
-        const searchUrl = `https://users.roblox.com/v1/users/search?keyword=${encodeURIComponent(q)}&limit=100`;
-        const searchRes = await fetch(searchUrl, { headers });
-        
-        if (!searchRes.ok) {
-          console.error(`[ROBLOX SEARCH] Search API Failed (${searchRes.status})`);
-          
-          // Fallback: Try the website's search endpoint which is often more lenient
-          console.log(`[ROBLOX SEARCH] Attempting fallback search...`);
-          const fallbackUrl = `https://www.roblox.com/search/users/results?keyword=${encodeURIComponent(q)}&maxRows=20&startIndex=0`;
+      // 3. Ultra Fallback: Internal Results API (usually less guarded)
+      if (results.length < 5) {
+        try {
+          console.log(`[ROBLOX SEARCH] Attempting internal fallback...`);
+          const fallbackUrl = `https://www.roblox.com/search/users/results?keyword=${encodeURIComponent(q)}&maxRows=50&startIndex=0`;
           const fallbackRes = await fetch(fallbackUrl, { headers });
-          
           if (fallbackRes.ok) {
             const fallbackData: any = await fallbackRes.json();
-            // Fallback structure is different: { UserSearchResults: [ { UserId, Name, DisplayName, ... } ] }
             if (fallbackData.UserSearchResults && Array.isArray(fallbackData.UserSearchResults)) {
-              console.log(`[ROBLOX SEARCH] Fallback Success: ${fallbackData.UserSearchResults.length} results`);
               for (const u of fallbackData.UserSearchResults) {
                 if (!seenIds.has(u.UserId.toString())) {
                   results.push({
@@ -78,19 +98,9 @@ async function startServer() {
               }
             }
           }
-        } else {
-          const searchData: any = await searchRes.json();
-          if (searchData.data && Array.isArray(searchData.data)) {
-            for (const u of searchData.data) {
-              if (!seenIds.has(u.id.toString())) {
-                results.push(u);
-                seenIds.add(u.id.toString());
-              }
-            }
-          }
+        } catch (e) {
+          console.warn("[ROBLOX SEARCH] Internal fallback error", e);
         }
-      } catch (e) {
-        console.error("[ROBLOX SEARCH] Keyword search exception", e);
       }
 
       if (results.length === 0) {
@@ -98,19 +108,17 @@ async function startServer() {
         return res.json([]);
       }
 
-      // 3. Get user IDs to fetch thumbnails
-      const userIds = results.slice(0, 50).map((u: any) => u.id).join(","); // limit to 50 for thumbnail API
+      // 4. Fetch Thumbnails
+      const userIds = results.slice(0, 50).map((u: any) => u.id).join(",");
       const thumbUrl = `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userIds}&size=150x150&format=Png&isCircular=false`;
       const thumbRes = await fetch(thumbUrl, { headers });
       
       let thumbData: any = { data: [] };
       if (thumbRes.ok) {
         thumbData = await thumbRes.json();
-      } else {
-        console.warn(`[ROBLOX SEARCH] Thumbnails API Failed (${thumbRes.status})`);
       }
 
-      // 4. Map results together
+      // 5. Map Results
       const mappedResults = results.map((u: any) => {
         const thumb = thumbData.data?.find((t: any) => t.targetId === u.id);
         return {
@@ -125,7 +133,7 @@ async function startServer() {
       res.json(mappedResults);
     } catch (error) {
       console.error("[ROBLOX SEARCH] Final catch-all Error:", error);
-      res.status(500).json({ error: "Failed to fetch from Roblox" });
+      res.status(500).json({ error: "Search failed" });
     }
   });
 
@@ -191,54 +199,50 @@ async function startServer() {
       }
 
       const headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
         'Origin': 'https://www.roblox.com',
-        'Referer': 'https://www.roblox.com/'
+        'Referer': 'https://www.roblox.com/',
+        'RBX-Modern-Browser': 'true'
       };
 
       // 1. Get User ID from Username
-      const userRes = await fetch(`https://users.roblox.com/v1/users/get-by-username?username=${encodeURIComponent(username)}`, { headers });
-      const userData: any = await userRes.json();
+      let userData: any = null;
+      try {
+        const userRes = await fetch(`https://users.roblox.com/v1/users/get-by-username?username=${encodeURIComponent(username)}`, { headers });
+        userData = await userRes.json();
+      } catch (e) {
+        console.warn(`[AVATAR] URL lookup failed for ${username}`, e);
+      }
 
       if (!userData || !userData.id) {
         // Fallback: search as keyword and take first
-        const searchRes = await fetch(`https://users.roblox.com/v1/users/search?keyword=${encodeURIComponent(username)}&limit=1`, { headers });
-        const searchData: any = await searchRes.json();
-        if (searchData.data && searchData.data[0]) {
-          const u = searchData.data[0];
-          const thumbRes = await fetch(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${u.id}&size=150x150&format=Png&isCircular=false`, { headers });
-          const thumbData: any = await thumbRes.json();
-          return res.json({
-            avatarUrl: thumbData?.data?.[0]?.imageUrl || "https://tr.rbxcdn.com/180DAY-40e9f0d0611c6d1d2b0e6e7c10b64ecc/150/150/AvatarHeadshot/Png/noFilter",
-            userId: u.id,
-            displayName: u.displayName || u.name
-          });
+        try {
+          const searchRes = await fetch(`https://users.roblox.com/v1/users/search?keyword=${encodeURIComponent(username)}&limit=1`, { headers });
+          const searchData: any = await searchRes.json();
+          if (searchData.data && searchData.data[0]) {
+            userData = searchData.data[0];
+          }
+        } catch (e) {
+          console.warn(`[AVATAR] Search fallback failed for ${username}`, e);
         }
-        return res.status(404).json({ error: "User not found" });
+      }
+
+      if (!userData || !userData.id) {
+         return res.status(404).json({ error: "User not found" });
       }
 
       // 2. Get Avatar Headshot URL
       const thumbRes = await fetch(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userData.id}&size=150x150&format=Png&isCircular=false`, { headers });
       const thumbData: any = await thumbRes.json();
-
       const thumbnail = thumbData?.data?.[0];
       
-      // Return the image URL immediately. Roblox usually displays a placeholder if pending.
-      if (thumbnail?.imageUrl) {
-        res.json({ 
-          avatarUrl: thumbnail.imageUrl,
-          userId: userData.id,
-          displayName: userData.displayName || username
-        });
-      } else {
-        // Ultimate fallback to the default silhouette if something goes wrong
-        res.json({ 
-          avatarUrl: "https://tr.rbxcdn.com/180DAY-40e9f0d0611c6d1d2b0e6e7c10b64ecc/150/150/AvatarHeadshot/Png/noFilter",
-          userId: userData.id,
-          displayName: userData.displayName || username
-        });
-      }
+      res.json({
+        avatarUrl: thumbnail ? thumbnail.imageUrl : "https://tr.rbxcdn.com/180DAY-40e9f0d0611c6d1d2b0e6e7c10b64ecc/150/150/AvatarHeadshot/Png/noFilter",
+        userId: userData.id,
+        displayName: userData.displayName || userData.name || username
+      });
     } catch (error) {
       console.error("Avatar fetch error:", error);
       res.status(500).json({ error: "Server error" });
