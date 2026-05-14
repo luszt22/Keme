@@ -64,20 +64,10 @@ export default function KeyGateModal({ onVerify, onAdminLogin, onClose }: KeyGat
           setErrorMessage('THIS KEY HAS EXPIRED');
           logAccess(key, ip, 'error', 'Expired key used');
         } 
-        // 4. Check HWID (IP)
-        else if (data.hwid && data.hwid !== ip && ip !== 'Unknown' && data.hwid !== 'Unknown') {
-          setError(true);
-          setErrorMessage('HWID MISMATCH - CONTACT SUPPORT');
-          logAccess(key, ip, 'error', `HWID Mismatch! Key locked to ${data.hwid}`);
-        }
         else {
-          // Success! Associate HWID if not set
-          if (!data.hwid && ip !== 'Unknown') {
-            await updateDoc(docRef, { hwid: ip });
-          }
-
+          // Success!
           try {
-            logAccess(key, ip, 'success', data.hwid ? 'Returning user' : 'New user associated');
+            logAccess(key, ip, 'success', 'Key verified');
           } catch (logErr) {
             console.warn("Logging failed silently", logErr);
           }

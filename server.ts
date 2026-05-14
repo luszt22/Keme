@@ -13,40 +13,64 @@ async function startServer() {
   // For this demo, we simulate a "backend" that searches a predefined list.
   app.get("/api/search-roblox", async (req, res) => {
     const q = (req.query.q as string || "").trim();
-    if (!q || q.length < 3) return res.json([]);
+    if (!q || q.length < 2) return res.json([]);
     
     const headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'application/json'
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      'Accept': 'application/json',
+      'Origin': 'https://www.roblox.com',
+      'Referer': 'https://www.roblox.com/'
     };
 
     try {
-      // 1. Search for users by keyword
-      const searchUrl = `https://users.roblox.com/v1/users/search?keyword=${encodeURIComponent(q)}&limit=10`;
-      const searchRes = await fetch(searchUrl, { headers });
-      let searchData = await searchRes.json();
+      const results: any[] = [];
+      const seenIds = new Set<string>();
 
-      // If keyword search yields nothing, try exact username lookup
-      if (!searchData.data || searchData.data.length === 0) {
-        const exactUrl = `https://users.roblox.com/v1/users/get-by-username?username=${encodeURIComponent(q)}`;
-        const exactRes = await fetch(exactUrl, { headers });
-        const exactData = await exactRes.json();
-        
-        if (exactData && exactData.id) {
-          searchData = { data: [exactData] };
-        } else {
-          return res.json([]);
+      // 1. Try exact username lookup first if no spaces
+      if (!q.includes(" ")) {
+        try {
+          const exactUrl = `https://users.roblox.com/v1/users/get-by-username?username=${encodeURIComponent(q)}`;
+          const exactRes = await fetch(exactUrl, { headers });
+          if (exactRes.ok) {
+            const exactData: any = await exactRes.json();
+            if (exactData && exactData.id) {
+              results.push(exactData);
+              seenIds.add(exactData.id.toString());
+            }
+          }
+        } catch (e) {
+          console.warn("Exact lookup failed", e);
         }
       }
 
-      // 2. Get user IDs to fetch thumbnails
-      const userIds = searchData.data.map((u: any) => u.id).join(",");
+      // 2. Search for users by keyword
+      try {
+        const searchUrl = `https://users.roblox.com/v1/users/search?keyword=${encodeURIComponent(q)}&limit=10`;
+        const searchRes = await fetch(searchUrl, { headers });
+        const searchData: any = await searchRes.json();
+
+        if (searchData.data && Array.isArray(searchData.data)) {
+          for (const u of searchData.data) {
+            if (!seenIds.has(u.id.toString())) {
+              results.push(u);
+              seenIds.add(u.id.toString());
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Keyword search failed", e);
+      }
+
+      if (results.length === 0) return res.json([]);
+
+      // 3. Get user IDs to fetch thumbnails
+      const userIds = results.map((u: any) => u.id).join(",");
       const thumbUrl = `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userIds}&size=150x150&format=Png&isCircular=false`;
       const thumbRes = await fetch(thumbUrl, { headers });
-      const thumbData = await thumbRes.json();
+      const thumbData: any = await thumbRes.json();
 
-      // 3. Map results together
-      const results = searchData.data.map((u: any) => {
+      // 4. Map results together
+      const mappedResults = results.map((u: any) => {
         const thumb = thumbData.data?.find((t: any) => t.targetId === u.id);
         return {
           display: u.displayName || u.name,
@@ -56,7 +80,7 @@ async function startServer() {
         };
       });
 
-      res.json(results);
+      res.json(mappedResults);
     } catch (error) {
       console.error("Roblox API Search Error:", error);
       res.status(500).json({ error: "Failed to fetch from Roblox" });
@@ -120,26 +144,41 @@ async function startServer() {
   app.get("/api/user-avatar/:username", async (req, res) => {
     try {
       const { username } = req.params;
-      if (!username || username.length < 3) {
+      if (!username || username.length < 2) {
         return res.status(400).json({ error: "Invalid username" });
       }
 
       const headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/json'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
+        'Origin': 'https://www.roblox.com',
+        'Referer': 'https://www.roblox.com/'
       };
 
       // 1. Get User ID from Username
       const userRes = await fetch(`https://users.roblox.com/v1/users/get-by-username?username=${encodeURIComponent(username)}`, { headers });
-      const userData = await userRes.json();
+      const userData: any = await userRes.json();
 
       if (!userData || !userData.id) {
+        // Fallback: search as keyword and take first
+        const searchRes = await fetch(`https://users.roblox.com/v1/users/search?keyword=${encodeURIComponent(username)}&limit=1`, { headers });
+        const searchData: any = await searchRes.json();
+        if (searchData.data && searchData.data[0]) {
+          const u = searchData.data[0];
+          const thumbRes = await fetch(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${u.id}&size=150x150&format=Png&isCircular=false`, { headers });
+          const thumbData: any = await thumbRes.json();
+          return res.json({
+            avatarUrl: thumbData?.data?.[0]?.imageUrl || "https://tr.rbxcdn.com/180DAY-40e9f0d0611c6d1d2b0e6e7c10b64ecc/150/150/AvatarHeadshot/Png/noFilter",
+            userId: u.id,
+            displayName: u.displayName || u.name
+          });
+        }
         return res.status(404).json({ error: "User not found" });
       }
 
       // 2. Get Avatar Headshot URL
       const thumbRes = await fetch(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userData.id}&size=150x150&format=Png&isCircular=false`, { headers });
-      const thumbData = await thumbRes.json();
+      const thumbData: any = await thumbRes.json();
 
       const thumbnail = thumbData?.data?.[0];
       

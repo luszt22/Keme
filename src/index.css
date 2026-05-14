@@ -1,8 +1,10 @@
+@import url('https://fonts.cdnfonts.com/css/builder-extended');
 @import "tailwindcss";
 
 @theme {
   --color-robux: #2563eb;
   --color-robux-hover: #1d4ed8;
+  --font-builder-extended: "Builder Extended", sans-serif;
 }
 
 @layer base {
@@ -25,12 +27,16 @@
 .grid-bg {
   position: absolute;
   inset: 0 0 auto 0;
-  height: 400px;
-  opacity: 0.07;
+  height: 600px;
+  opacity: 0.12;
   pointer-events: none;
-  background-image:
-    linear-gradient(#111827 1px, transparent 1px),
-    linear-gradient(90deg, #111827 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: radial-gradient(ellipse at top, black 30%, transparent 70%);
+  background-image: url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 40 Q 20 30, 40 40 Q 60 50, 80 40' fill='none' stroke='%23111827' stroke-width='0.5'/%3E%3Cpath d='M40 0 Q 30 20, 40 40 Q 50 60, 40 80' fill='none' stroke='%23111827' stroke-width='0.5'/%3E%3C/svg%3E");
+  background-size: 80px 80px;
+  mask-image: radial-gradient(ellipse at center top, black 20%, transparent 90%);
+  animation: bg-flow 40s linear infinite;
+}
+
+@keyframes bg-flow {
+  from { background-position: 0 0; }
+  to { background-position: 80px 80px; }
 }
